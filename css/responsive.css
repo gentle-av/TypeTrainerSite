@@ -1,0 +1,53 @@
+@media (max-width: 768px) {
+.sidebar {
+width: 200px;
+padding: 15px;
+}
+.main-content {
+padding: 20px;
+}
+.stats-panel {
+gap: 10px;
+margin-bottom: 20px;
+}
+.stat-value {
+font-size: 20px;
+}
+.stat-label {
+font-size: 10px;
+}
+.text-container {
+padding: 20px;
+max-height: 300px;
+}
+.text-display {
+font-size: 18px;
+}
+.btn {
+padding: 8px 20px;
+font-size: 14px;
+}
+.text-container.waiting::after,
+.text-container.completing::after {
+font-size: 14px;
+padding: 8px 16px;
+white-space: normal;
+text-align: center;
+width: 80%;
+}
+}
+
+@media (max-width: 480px) {
+.sidebar {
+display: none;
+}
+.stats-panel {
+grid-template-columns: repeat(2, 1fr);
+}
+.text-display {
+font-size: 16px;
+}
+.text-container {
+max-height: 250px;
+}
+}

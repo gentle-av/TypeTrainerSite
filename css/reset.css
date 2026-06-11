@@ -1,0 +1,30 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--bg0);
+  color: var(--fg0);
+  font-family: "Courier New", "Monaco", monospace;
+  height: 100vh;
+  overflow: hidden;
+}
+
+body.auth-locked {
+  cursor: not-allowed;
+}
+
+body.auth-locked button:not(#authBtn):not(#logoutBtn) {
+  cursor: not-allowed;
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+html,
+body {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}

@@ -1,0 +1,25 @@
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg2);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--yellow);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--orange);
+}
+
+.leaderboard-container,
+.history-container,
+.text-container {
+  scrollbar-width: thin;
+  scrollbar-color: var(--yellow) var(--bg2);
+}

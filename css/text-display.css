@@ -1,0 +1,101 @@
+.text-container {
+  position: relative;
+  background: var(--bg1);
+  border-radius: var(--radius-lg);
+  padding: 40px;
+  margin-bottom: 40px;
+  min-height: 200px;
+  max-height: 400px;
+  overflow-y: auto;
+  transition: all 0.5s ease;
+  flex-shrink: 1;
+}
+
+.text-display {
+  font-size: 24px;
+  line-height: 1.6;
+  font-family: "Courier New", monospace;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  white-space: normal;
+}
+
+.text-display .word {
+  display: inline-block;
+  margin-right: 12px;
+}
+
+.text-display .char {
+  display: inline-block;
+  transition: all var(--transition-fast);
+}
+
+.text-display .char.correct {
+  color: var(--green);
+}
+
+.text-display .char.incorrect {
+  color: var(--red);
+  background: rgba(251, 73, 52, 0.3);
+  border-radius: 2px;
+}
+
+.text-display .char.current {
+  color: var(--fg0);
+  border-bottom: 2px solid var(--yellow);
+  padding: 0 1px;
+}
+
+.text-display .char.pending {
+  color: var(--fg4);
+}
+
+.text-container.waiting {
+  opacity: 0.5;
+  filter: blur(3px);
+}
+
+.text-container.waiting::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--yellow);
+  font-size: 18px;
+  font-weight: bold;
+  background: var(--bg2);
+  padding: 12px 24px;
+  border-radius: var(--radius-md);
+  white-space: nowrap;
+  z-index: 10;
+  opacity: 1;
+  filter: none;
+}
+
+.text-container.completing {
+  opacity: 0.5;
+  filter: blur(3px);
+  transition: all 0.5s ease;
+}
+
+.text-container.completing::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: var(--green);
+  font-size: 18px;
+  font-weight: bold;
+  background: var(--bg2);
+  padding: 12px 24px;
+  border-radius: var(--radius-md);
+  white-space: nowrap;
+  z-index: 10;
+  opacity: 1;
+  filter: none;
+}
+
+.text-container.active {
+  opacity: 1;
+  filter: blur(0);
+}
