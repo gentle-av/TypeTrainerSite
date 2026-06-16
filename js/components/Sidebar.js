@@ -1,14 +1,12 @@
 import { Header } from "./Header.js";
 import { AuthPanel } from "./AuthPanel.js";
 import { NavMenu } from "./NavMenu.js";
-import { LeaderboardWidget } from "./LeaderboardWidget.js";
 
 export class Sidebar {
   constructor() {
     this.header = new Header();
     this.authPanel = new AuthPanel();
     this.navMenu = new NavMenu();
-    this.leaderboardWidget = new LeaderboardWidget();
   }
 
   render() {
@@ -16,7 +14,6 @@ export class Sidebar {
       ${this.header.render()}
       ${this.authPanel.render()}
       ${this.navMenu.render()}
-      ${this.leaderboardWidget.render()}
     `;
   }
 

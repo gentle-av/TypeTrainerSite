@@ -10,6 +10,7 @@ import { StatsPage } from "./pages/StatsPage.js";
 import { Stats } from "./components/Stats.js";
 import { TextDisplay } from "./components/TextDisplay.js";
 import { Game } from "./core/Game.js";
+import { SessionManager } from "./core/SessionManager.js";
 
 const api = new Api();
 const notification = new Notification();
@@ -151,6 +152,30 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   });
   await auth.checkSession();
+  if (auth.isLoggedIn) {
+    const userId = localStorage.getItem("user_id");
+    if (userId) {
+      try {
+        const response = await fetch(`/api/session/tab?user_id=${userId}`, {
+          method: "GET",
+          credentials: "include",
+          headers: {
+            "Content-Type": "application/json",
+          },
+        });
+        const data = await response.json();
+        const savedTab = data.tab || "train";
+        console.log("Restoring tab:", savedTab);
+        document.querySelectorAll(".nav-btn").forEach((btn) => {
+          if (btn.dataset.page === savedTab) {
+            btn.click();
+          }
+        });
+      } catch (error) {
+        console.error("Error getting tab:", error);
+      }
+    }
+  }
   setupDifficultyButtons();
   document
     .getElementById("authBtn")
@@ -159,7 +184,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     .getElementById("logoutBtn")
     ?.addEventListener("click", () => auth.logout());
   document.querySelectorAll(".nav-btn").forEach((btn) => {
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", async () => {
       const page = btn.dataset.page;
       sidebar.updateNav(page);
       document
@@ -170,6 +195,20 @@ document.addEventListener("DOMContentLoaded", async () => {
         ?.classList.toggle("active", page === "stats");
       if (page === "stats" && auth.isLoggedIn) {
         loadUserStats();
+      }
+      if (auth.isLoggedIn) {
+        try {
+          await fetch("/api/session/tab", {
+            method: "POST",
+            credentials: "include",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ tab: page }),
+          });
+        } catch (error) {
+          console.error("Error saving tab:", error);
+        }
       }
     });
   });

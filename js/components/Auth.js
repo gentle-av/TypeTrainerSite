@@ -10,33 +10,33 @@ export class Auth {
 
   setupModal() {
     const modalHtml = `
-<div id="authModal" class="modal">
-<div class="modal-content">
-<div class="modal-header">
-<h2>🔐 Авторизация</h2>
-<span class="close">&times;</span>
-</div>
-<div class="modal-body">
-<div id="authTabs">
-<button class="tab-btn active" data-tab="login">Вход</button>
-<button class="tab-btn" data-tab="register">Регистрация</button>
-</div>
-<div id="loginForm" class="auth-form active">
-<input type="text" id="loginLogin" placeholder="Логин (email)" autocomplete="username">
-<input type="password" id="loginPassword" placeholder="Пароль" autocomplete="current-password">
-<button id="doLoginBtn" class="btn-auth">➡ Войти</button>
-</div>
-<div id="registerForm" class="auth-form">
-<input type="text" id="regUsername" placeholder="Имя пользователя">
-<input type="text" id="regLogin" placeholder="Логин (email)">
-<input type="password" id="regPassword" placeholder="Пароль">
-<input type="password" id="regPasswordConfirm" placeholder="Подтверждение пароля">
-<button id="doRegisterBtn" class="btn-auth">📝 Зарегистрироваться</button>
-</div>
-</div>
-</div>
-</div>
-`;
+    <div id="authModal" class="modal">
+    <div class="modal-content">
+    <div class="modal-header">
+    <h2>🔐 Авторизация</h2>
+    <span class="close">&times;</span>
+    </div>
+    <div class="modal-body">
+    <div id="authTabs">
+    <button class="tab-btn active" data-tab="login">Вход</button>
+    <button class="tab-btn" data-tab="register">Регистрация</button>
+    </div>
+    <div id="loginForm" class="auth-form active">
+    <input type="text" id="loginLogin" placeholder="Логин (email)" autocomplete="username">
+    <input type="password" id="loginPassword" placeholder="Пароль" autocomplete="current-password">
+    <button id="doLoginBtn" class="btn-auth">➡ Войти</button>
+    </div>
+    <div id="registerForm" class="auth-form">
+    <input type="text" id="regUsername" placeholder="Имя пользователя">
+    <input type="text" id="regLogin" placeholder="Логин (email)">
+    <input type="password" id="regPassword" placeholder="Пароль">
+    <input type="password" id="regPasswordConfirm" placeholder="Подтверждение пароля">
+    <button id="doRegisterBtn" class="btn-auth">📝 Зарегистрироваться</button>
+    </div>
+    </div>
+    </div>
+    </div>
+    `;
     document.body.insertAdjacentHTML("beforeend", modalHtml);
     this.modal = document.getElementById("authModal");
     this.setupEventListeners();
@@ -142,50 +142,56 @@ export class Auth {
   }
 
   async checkSession() {
+    console.log("Checking session...");
+    const userId = localStorage.getItem("user_id");
+    console.log("User ID from localStorage:", userId);
+    if (userId) {
+      this.isLoggedIn = true;
+      this.currentUser = { login: "alexey" };
+      console.log("Session restored from localStorage");
+      this.onLoginCallback?.();
+      return true;
+    }
     try {
-      const response = await fetch("/api/user/current");
-      if (response.status === 401) {
-        this.isLoggedIn = false;
-        this.updateUI();
-        return;
-      }
+      const response = await fetch("/api/user/current", {
+        credentials: "include",
+      });
       const data = await response.json();
-      if (data.success && data.user_id) {
+      if (data.success) {
         this.isLoggedIn = true;
-        this.currentUser = { id: data.user_id, login: data.login };
-        this.updateUI();
+        this.currentUser = { login: data.login };
+        localStorage.setItem("user_id", data.user_id);
+        this.onLoginCallback?.();
+        return true;
       }
     } catch (error) {
-      console.log("Not logged in");
-      this.isLoggedIn = false;
-      this.updateUI();
+      console.error("Session check failed:", error);
     }
+    this.isLoggedIn = false;
+    return false;
   }
 
-  async login() {
-    const login = document.getElementById("loginLogin")?.value;
-    const password = document.getElementById("loginPassword")?.value;
-    if (!login || !password) {
-      this.notification.error("Заполните все поля");
-      return;
-    }
+  async login(login, password) {
     try {
-      const response = await this.api.post("/api/user/login", {
-        login,
-        password,
+      const response = await fetch("/api/user/login", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ login, password }),
       });
-      if (response.success) {
+      const data = await response.json();
+      if (data.success) {
+        localStorage.setItem("user_id", data.user_id);
+        console.log("Saved user_id to localStorage:", data.user_id);
         this.isLoggedIn = true;
-        this.currentUser = { id: response.user_id, login };
-        this.notification.success("Вход выполнен успешно");
-        this.close();
-        this.updateUI();
-        if (this.onLogin) this.onLogin();
-      } else {
-        this.notification.error(response.error || "Ошибка входа");
+        this.currentUser = { login };
+        this.onLoginCallback?.();
+        this.notification.success("Вы вошли в систему");
       }
+      return data;
     } catch (error) {
-      this.notification.error("Ошибка сервера");
+      this.notification.error("Ошибка соединения");
+      return { success: false };
     }
   }
 
