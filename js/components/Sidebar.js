@@ -7,6 +7,7 @@ export class Sidebar {
     this.header = new Header();
     this.authPanel = new AuthPanel();
     this.navMenu = new NavMenu();
+    this.sessionManager = window.sessionManager;
   }
 
   render() {
@@ -42,6 +43,23 @@ export class Sidebar {
       } else {
         btn.classList.remove("active");
       }
+    });
+  }
+
+  async saveCurrentTab(page) {
+    if (this.sessionManager) {
+      await this.sessionManager.saveTab(page);
+    }
+  }
+
+  setupNavigation() {
+    const btns = document.querySelectorAll(".nav-btn");
+    btns.forEach((btn) => {
+      btn.addEventListener("click", async () => {
+        const page = btn.dataset.page;
+        this.updateNav(page);
+        await this.saveCurrentTab(page);
+      });
     });
   }
 }

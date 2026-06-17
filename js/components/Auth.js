@@ -171,7 +171,13 @@ export class Auth {
     return false;
   }
 
-  async login(login, password) {
+  async login() {
+    const login = document.getElementById("loginLogin")?.value;
+    const password = document.getElementById("loginPassword")?.value;
+    if (!login || !password) {
+      this.notification.error("Введите логин и пароль");
+      return;
+    }
     try {
       const response = await fetch("/api/user/login", {
         method: "POST",
@@ -187,6 +193,9 @@ export class Auth {
         this.currentUser = { login };
         this.onLoginCallback?.();
         this.notification.success("Вы вошли в систему");
+        this.close();
+      } else {
+        this.notification.error(data.error || "Ошибка входа");
       }
       return data;
     } catch (error) {

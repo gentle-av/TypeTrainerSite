@@ -9,7 +9,6 @@ class SessionManager {
       console.log("User not logged in, skipping save");
       return false;
     }
-
     console.log("Saving tab:", tab, "for user:", userId);
     try {
       const response = await fetch("/api/session/tab", {
@@ -35,7 +34,6 @@ class SessionManager {
       console.log("User not logged in");
       return "train";
     }
-
     try {
       const response = await fetch(`/api/session/tab?user_id=${userId}`, {
         method: "GET",

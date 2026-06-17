@@ -10,7 +10,6 @@ import { StatsPage } from "./pages/StatsPage.js";
 import { Stats } from "./components/Stats.js";
 import { TextDisplay } from "./components/TextDisplay.js";
 import { Game } from "./core/Game.js";
-import { SessionManager } from "./core/SessionManager.js";
 
 const api = new Api();
 const notification = new Notification();
@@ -78,6 +77,31 @@ function enableAllControls() {
     clearHistoryBtn.style.cursor = "pointer";
   }
   document.body.classList.remove("auth-locked");
+}
+
+async function restoreTab(savedTab) {
+  let attempts = 0;
+  const maxAttempts = 10;
+  return new Promise((resolve) => {
+    const restoreInterval = setInterval(() => {
+      const navBtns = document.querySelectorAll(".nav-btn");
+      const targetBtn = Array.from(navBtns).find(
+        (btn) => btn.dataset.page === savedTab,
+      );
+      if (targetBtn) {
+        targetBtn.click();
+        clearInterval(restoreInterval);
+        resolve(true);
+      } else {
+        attempts++;
+        if (attempts >= maxAttempts) {
+          clearInterval(restoreInterval);
+          console.warn("Failed to restore tab after", maxAttempts, "attempts");
+          resolve(false);
+        }
+      }
+    }, 100);
+  });
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
@@ -166,11 +190,10 @@ document.addEventListener("DOMContentLoaded", async () => {
         const data = await response.json();
         const savedTab = data.tab || "train";
         console.log("Restoring tab:", savedTab);
-        document.querySelectorAll(".nav-btn").forEach((btn) => {
-          if (btn.dataset.page === savedTab) {
-            btn.click();
-          }
-        });
+
+        setTimeout(() => {
+          restoreTab(savedTab);
+        }, 150);
       } catch (error) {
         console.error("Error getting tab:", error);
       }
@@ -193,6 +216,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       document
         .getElementById("statsPage")
         ?.classList.toggle("active", page === "stats");
+
       if (page === "stats" && auth.isLoggedIn) {
         loadUserStats();
       }
