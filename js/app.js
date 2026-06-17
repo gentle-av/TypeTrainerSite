@@ -212,6 +212,8 @@ async function startLesson(lessonId) {
     if (currentGame) {
       currentGame.loadText(lesson.text);
       currentGame.setLessonMode(true);
+      currentGame.resetProgress();
+      currentGame.stats.reset();
       notification.info(`📚 Урок: ${lesson.title}`);
     }
   } catch (error) {

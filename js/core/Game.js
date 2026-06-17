@@ -18,19 +18,12 @@ export class Game {
     this.currentWordIndex = 0;
     this.currentCharIndex = 0;
     this.difficulty = "medium";
+    this.isLessonMode = false;
     this.keydownHandler = null;
     this.enterHandler = null;
     this.isKeydownRegistered = false;
     this.errorPositions = new Set();
     this.setupKeyboardHandlers();
-    console.log("Game initialized with:", {
-      api: !!this.api,
-      notification: !!this.notification,
-      leaderboard: !!this.leaderboard,
-      history: !!this.history,
-      stats: !!this.stats,
-      textDisplay: !!this.textDisplay,
-    });
   }
 
   setLessonMode(enabled) {
@@ -38,9 +31,15 @@ export class Game {
   }
 
   loadText(text) {
+    if (!text) {
+      console.error("No text provided");
+      return;
+    }
     this.currentWords = text.split(" ");
     this.textDisplay.setText(this.currentWords);
     this.resetProgress();
+    this.stats.reset();
+    this.textDisplay.render();
   }
 
   setupKeyboardHandlers() {
@@ -53,10 +52,8 @@ export class Game {
     if (authModal && authModal.style.display === "block") {
       return;
     }
-    console.log("Enter pressed, game active:", this.active);
     e.preventDefault();
     if (!this.active) {
-      console.log("Starting game by Enter");
       this.start();
     }
   }
@@ -75,7 +72,7 @@ export class Game {
   }
 
   async init() {
-    await this.loadText();
+    await this.loadRandomText();
     this.stats.reset();
     this.leaderboard.load();
     if (this.enterHandler) {
@@ -89,10 +86,9 @@ export class Game {
     document.addEventListener("keydown", this.enterHandler);
   }
 
-  async loadText() {
+  async loadRandomText() {
     try {
       const data = await this.api.getRandomText(this.difficulty);
-      console.log("Loaded text data:", data);
       if (data && data.text) {
         this.currentWords = data.text.split(" ");
         this.textDisplay.setText(this.currentWords);
@@ -135,7 +131,6 @@ export class Game {
       this.keydownHandler = (e) => this.handleKeyPress(e);
       document.addEventListener("keydown", this.keydownHandler);
       this.isKeydownRegistered = true;
-      console.log("Keydown handler registered once");
     }
     this.notification.info("Тест начат!");
     if (this.onStart) this.onStart();
@@ -153,17 +148,7 @@ export class Game {
 
   calculateAccuracy() {
     if (this.totalChars === 0) return 100;
-    const accuracy =
-      ((this.totalChars - this.totalErrors) / this.totalChars) * 100;
-    console.log(
-      "Accuracy calculation - totalChars:",
-      this.totalChars,
-      "errors:",
-      this.totalErrors,
-      "accuracy:",
-      accuracy,
-    );
-    return accuracy;
+    return ((this.totalChars - this.totalErrors) / this.totalChars) * 100;
   }
 
   updateStats() {
@@ -199,12 +184,6 @@ export class Game {
       if (!this.errorPositions.has(position)) {
         this.errorPositions.add(position);
         this.totalErrors++;
-        console.log(
-          "Space error at position",
-          position,
-          "Total errors:",
-          this.totalErrors,
-        );
       }
       this.currentCharIndex++;
       this.currentInput += " ";
@@ -254,20 +233,6 @@ export class Game {
         if (!this.errorPositions.has(position)) {
           this.errorPositions.add(position);
           this.totalErrors++;
-          console.log(
-            "Error at position",
-            position,
-            "Total errors:",
-            this.totalErrors,
-          );
-        }
-      } else {
-        if (this.errorPositions.has(position)) {
-          console.log(
-            "Position",
-            position,
-            "already had error, keeping error count",
-          );
         }
       }
       this.currentCharIndex++;
@@ -327,7 +292,11 @@ export class Game {
         this.isKeydownRegistered = false;
       }
     }
-    this.loadText();
+    if (this.isLessonMode) {
+      this.loadText(this.currentWords.join(" "));
+    } else {
+      this.loadRandomText();
+    }
     this.stats.reset();
     if (this.onReset) this.onReset();
   }
@@ -350,12 +319,14 @@ export class Game {
   }
 
   async loadNewText() {
-    console.log("Loading new text...");
-    await this.loadText();
+    if (this.isLessonMode) {
+      this.loadText(this.currentWords.join(" "));
+      return;
+    }
+    await this.loadRandomText();
     this.resetProgress();
     this.stats.reset();
     this.textDisplay.render();
-    console.log("New text loaded:", this.currentWords);
   }
 
   normalizeChar(char) {
