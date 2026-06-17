@@ -149,6 +149,7 @@ export class Auth {
       this.isLoggedIn = true;
       this.currentUser = { login: "alexey" };
       console.log("Session restored from localStorage");
+      this.updateUI();
       this.onLoginCallback?.();
       return true;
     }
@@ -161,6 +162,7 @@ export class Auth {
         this.isLoggedIn = true;
         this.currentUser = { login: data.login };
         localStorage.setItem("user_id", data.user_id);
+        this.updateUI();
         this.onLoginCallback?.();
         return true;
       }
@@ -168,6 +170,7 @@ export class Auth {
       console.error("Session check failed:", error);
     }
     this.isLoggedIn = false;
+    this.updateUI();
     return false;
   }
 
@@ -191,9 +194,10 @@ export class Auth {
         console.log("Saved user_id to localStorage:", data.user_id);
         this.isLoggedIn = true;
         this.currentUser = { login };
-        this.onLoginCallback?.();
-        this.notification.success("Вы вошли в систему");
+        this.updateUI();
         this.close();
+        this.notification.success("Вы вошли в систему");
+        this.onLoginCallback?.();
       } else {
         this.notification.error(data.error || "Ошибка входа");
       }
@@ -248,8 +252,9 @@ export class Auth {
     }
     this.isLoggedIn = false;
     this.currentUser = null;
-    this.notification.success("Вы вышли из системы");
+    localStorage.removeItem("user_id");
     this.updateUI();
+    this.notification.success("Вы вышли из системы");
     if (this.onLogout) this.onLogout();
   }
 
@@ -259,15 +264,6 @@ export class Auth {
 
   setOnLogout(callback) {
     this.onLogout = callback;
-  }
-
-  open() {
-    this.modal.style.display = "block";
-    document.getElementById("loginLogin")?.focus();
-  }
-
-  close() {
-    this.modal.style.display = "none";
   }
 
   updateUI() {

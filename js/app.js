@@ -7,6 +7,7 @@ import { AdminPanel } from "./components/Admin.js";
 import { Sidebar } from "./components/Sidebar.js";
 import { TrainPage } from "./pages/TrainPage.js";
 import { StatsPage } from "./pages/StatsPage.js";
+import { Lessons } from "./pages/Lessons.js";
 import { Stats } from "./components/Stats.js";
 import { TextDisplay } from "./components/TextDisplay.js";
 import { Game } from "./core/Game.js";
@@ -19,9 +20,11 @@ const auth = new Auth(api, notification);
 const sidebar = new Sidebar();
 const trainPage = new TrainPage();
 const statsPage = new StatsPage();
+const lessonsPage = new Lessons();
 let currentGame = null;
 let stats = null;
 let textDisplay = null;
+let currentLessonId = null;
 
 function disableAllControls() {
   const startBtn = document.getElementById("startBtn");
@@ -104,6 +107,139 @@ async function restoreTab(savedTab) {
   });
 }
 
+async function loadLessons() {
+  try {
+    const response = await fetch("/api/lessons");
+    const lessons = await response.json();
+    renderLessons(lessons);
+    if (auth.isLoggedIn) {
+      await loadLessonProgress();
+    }
+  } catch (error) {
+    console.error("Failed to load lessons:", error);
+    const grid = document.getElementById("lessonsGrid");
+    if (grid) {
+      grid.innerHTML = '<div class="error">Ошибка загрузки уроков</div>';
+    }
+  }
+}
+
+function getDifficultyLabel(difficulty) {
+  const labels = {
+    easy: "🟢 Лёгкий",
+    medium: "🟡 Средний",
+    hard: "🔴 Сложный",
+  };
+  return labels[difficulty] || difficulty;
+}
+
+function renderLessons(lessons) {
+  const grid = document.getElementById("lessonsGrid");
+  if (!grid) return;
+  if (lessons.length === 0) {
+    grid.innerHTML = '<div class="empty">Нет доступных уроков</div>';
+    return;
+  }
+  grid.innerHTML = lessons
+    .map(
+      (lesson) => `
+    <div class="lesson-card" data-id="${lesson.id}">
+      <div class="lesson-header">
+        <span class="lesson-difficulty ${lesson.difficulty}">${getDifficultyLabel(lesson.difficulty)}</span>
+        <span class="lesson-order">Урок ${lesson.order}</span>
+      </div>
+      <h3 class="lesson-title">${lesson.title}</h3>
+      <p class="lesson-description">${lesson.description}</p>
+      <div class="lesson-status" id="lessonStatus_${lesson.id}">
+        <span class="status-badge not-started">⏳ Не начат</span>
+      </div>
+      <button class="btn-start-lesson" data-id="${lesson.id}">Начать урок</button>
+    </div>
+  `,
+    )
+    .join("");
+  document.querySelectorAll(".btn-start-lesson").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = parseInt(btn.dataset.id);
+      startLesson(id);
+    });
+  });
+}
+
+async function loadLessonProgress() {
+  try {
+    const response = await fetch("/api/lessons/progress");
+    const progress = await response.json();
+    let completedCount = 0;
+    let totalCount = 0;
+    Object.keys(progress).forEach((lessonId) => {
+      const status = document.getElementById(`lessonStatus_${lessonId}`);
+      if (status) {
+        const data = progress[lessonId];
+        totalCount++;
+        if (data.completed) {
+          completedCount++;
+          status.innerHTML = `<span class="status-badge completed">✅ Пройден (${Math.round(data.cpm)} CPM, ${data.accuracy.toFixed(1)}%)</span>`;
+        } else {
+          status.innerHTML = `<span class="status-badge in-progress">🔄 В процессе</span>`;
+        }
+      }
+    });
+    const progressContainer = document.getElementById("lessonProgress");
+    if (progressContainer && totalCount > 0) {
+      progressContainer.style.display = "block";
+      const percent = Math.round((completedCount / totalCount) * 100);
+      document.getElementById("lessonProgressFill").style.width = percent + "%";
+      document.getElementById("lessonProgressText").textContent =
+        percent + "% (" + completedCount + "/" + totalCount + ")";
+    }
+  } catch (error) {
+    console.error("Failed to load progress:", error);
+  }
+}
+
+async function startLesson(lessonId) {
+  if (!auth.isLoggedIn) {
+    notification.error("Необходимо авторизоваться");
+    auth.open();
+    return;
+  }
+  try {
+    const response = await fetch(`/api/lessons/${lessonId}`);
+    const lesson = await response.json();
+    currentLessonId = lessonId;
+    document.querySelector('.nav-btn[data-page="train"]')?.click();
+    if (currentGame) {
+      currentGame.loadText(lesson.text);
+      currentGame.setLessonMode(true);
+      notification.info(`📚 Урок: ${lesson.title}`);
+    }
+  } catch (error) {
+    console.error("Failed to load lesson:", error);
+    notification.error("Ошибка загрузки урока");
+  }
+}
+
+async function saveLessonProgress(cpm, accuracy) {
+  if (!auth.isLoggedIn || !currentLessonId) return;
+  try {
+    await fetch("/api/lessons/progress", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        lesson_id: currentLessonId,
+        completed: true,
+        cpm: Math.round(cpm),
+        accuracy: accuracy,
+      }),
+    });
+    currentLessonId = null;
+  } catch (error) {
+    console.error("Failed to save lesson progress:", error);
+  }
+}
+
 document.addEventListener("DOMContentLoaded", async () => {
   const sidebarContainer = document.getElementById("sidebar");
   const mainContainer = document.getElementById("main-content");
@@ -111,6 +247,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (mainContainer) {
     mainContainer.innerHTML = `
       <div id="trainPage" class="page active">${trainPage.render()}</div>
+      <div id="lessonsPage" class="page">${lessonsPage.render()}</div>
       <div id="statsPage" class="page">${statsPage.render()}</div>
     `;
   }
@@ -136,7 +273,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     const startBtn = document.getElementById("startBtn");
     if (startBtn) startBtn.disabled = true;
   });
-  currentGame.setOnEnd(() => {
+  currentGame.setOnEnd(async () => {
     const textContainer = document.getElementById("textContainer");
     if (textContainer) {
       textContainer.classList.add("completing");
@@ -147,6 +284,11 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
     const startBtn = document.getElementById("startBtn");
     if (startBtn && auth.isLoggedIn) startBtn.disabled = false;
+    if (currentLessonId) {
+      const cpm = currentGame.calculateCPM();
+      const accuracy = currentGame.calculateAccuracy();
+      await saveLessonProgress(cpm, accuracy);
+    }
   });
   currentGame.setOnReset(() => {
     const textContainer = document.getElementById("textContainer");
@@ -183,14 +325,11 @@ document.addEventListener("DOMContentLoaded", async () => {
         const response = await fetch(`/api/session/tab?user_id=${userId}`, {
           method: "GET",
           credentials: "include",
-          headers: {
-            "Content-Type": "application/json",
-          },
+          headers: { "Content-Type": "application/json" },
         });
         const data = await response.json();
         const savedTab = data.tab || "train";
         console.log("Restoring tab:", savedTab);
-
         setTimeout(() => {
           restoreTab(savedTab);
         }, 150);
@@ -214,20 +353,23 @@ document.addEventListener("DOMContentLoaded", async () => {
         .getElementById("trainPage")
         ?.classList.toggle("active", page === "train");
       document
+        .getElementById("lessonsPage")
+        ?.classList.toggle("active", page === "lessons");
+      document
         .getElementById("statsPage")
         ?.classList.toggle("active", page === "stats");
-
       if (page === "stats" && auth.isLoggedIn) {
         loadUserStats();
+      }
+      if (page === "lessons") {
+        loadLessons();
       }
       if (auth.isLoggedIn) {
         try {
           await fetch("/api/session/tab", {
             method: "POST",
             credentials: "include",
-            headers: {
-              "Content-Type": "application/json",
-            },
+            headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ tab: page }),
           });
         } catch (error) {
@@ -255,6 +397,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       auth.open();
       return;
     }
+    if (currentLessonId) {
+      currentLessonId = null;
+    }
     currentGame?.start();
   });
   document.getElementById("resetBtn")?.addEventListener("click", () => {
@@ -264,6 +409,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       return;
     }
     currentGame?.reset();
+    if (currentLessonId) {
+      currentLessonId = null;
+    }
   });
   if (!auth.isLoggedIn) {
     disableAllControls();
@@ -288,6 +436,7 @@ function setupDifficultyButtons() {
       });
       btn.classList.add("active");
       if (currentGame) {
+        currentLessonId = null;
         currentGame.setDifficulty(difficulty);
         currentGame.loadNewText();
       }
@@ -342,3 +491,4 @@ async function loadUserStats() {
 
 window.adminPanel = new AdminPanel(api);
 window.loadUserStats = loadUserStats;
+window.loadLessons = loadLessons;

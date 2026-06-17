@@ -33,6 +33,16 @@ export class Game {
     });
   }
 
+  setLessonMode(enabled) {
+    this.isLessonMode = enabled;
+  }
+
+  loadText(text) {
+    this.currentWords = text.split(" ");
+    this.textDisplay.setText(this.currentWords);
+    this.resetProgress();
+  }
+
   setupKeyboardHandlers() {
     this.keyboard.register(" ", (e) => this.handleSpace(e));
     this.keyboard.register("Backspace", (e) => this.handleBackspace(e));
