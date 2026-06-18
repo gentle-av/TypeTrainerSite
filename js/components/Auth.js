@@ -4,183 +4,131 @@ export class Auth {
     this.notification = notification;
     this.isLoggedIn = false;
     this.currentUser = null;
-    this.setupModal();
-    this.checkSession();
+    this.game = null;
+    this.onLoginCallback = null;
+    this.onLogoutCallback = null;
+    this.sessionChecked = false;
+    this.modal = null;
   }
 
-  setupModal() {
-    const modalHtml = `
-    <div id="authModal" class="modal">
-    <div class="modal-content">
-    <div class="modal-header">
-    <h2>🔐 Авторизация</h2>
-    <span class="close">&times;</span>
-    </div>
-    <div class="modal-body">
-    <div id="authTabs">
-    <button class="tab-btn active" data-tab="login">Вход</button>
-    <button class="tab-btn" data-tab="register">Регистрация</button>
-    </div>
-    <div id="loginForm" class="auth-form active">
-    <input type="text" id="loginLogin" placeholder="Логин (email)" autocomplete="username">
-    <input type="password" id="loginPassword" placeholder="Пароль" autocomplete="current-password">
-    <button id="doLoginBtn" class="btn-auth">➡ Войти</button>
-    </div>
-    <div id="registerForm" class="auth-form">
-    <input type="text" id="regUsername" placeholder="Имя пользователя">
-    <input type="text" id="regLogin" placeholder="Логин (email)">
-    <input type="password" id="regPassword" placeholder="Пароль">
-    <input type="password" id="regPasswordConfirm" placeholder="Подтверждение пароля">
-    <button id="doRegisterBtn" class="btn-auth">📝 Зарегистрироваться</button>
-    </div>
-    </div>
-    </div>
-    </div>
-    `;
-    document.body.insertAdjacentHTML("beforeend", modalHtml);
-    this.modal = document.getElementById("authModal");
-    this.setupEventListeners();
+  setGame(game) {
+    this.game = game;
   }
 
-  setupEventListeners() {
-    const closeBtn = this.modal?.querySelector(".close");
-    closeBtn?.addEventListener("click", () => this.close());
-    window.addEventListener("click", (e) => {
-      if (e.target === this.modal) this.close();
-    });
-    const tabs = this.modal?.querySelectorAll(".tab-btn");
-    tabs?.forEach((btn) => {
-      btn.addEventListener("click", () => {
-        tabs.forEach((b) => b.classList.remove("active"));
-        btn.classList.add("active");
-        const tab = btn.dataset.tab;
-        document
-          .getElementById("loginForm")
-          ?.classList.toggle("active", tab === "login");
-        document
-          .getElementById("registerForm")
-          ?.classList.toggle("active", tab === "register");
-      });
-    });
-    const doLoginBtn = document.getElementById("doLoginBtn");
-    const doRegisterBtn = document.getElementById("doRegisterBtn");
-    if (doLoginBtn) {
-      doLoginBtn.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        this.login();
-      });
+  setOnLogin(callback) {
+    this.onLoginCallback = callback;
+  }
+
+  setOnLogout(callback) {
+    this.onLogoutCallback = callback;
+  }
+
+  async checkSession() {
+    if (this.sessionChecked) return;
+    try {
+      const user = await this.api.get("/api/user/current");
+      if (user && user.success) {
+        this.isLoggedIn = true;
+        this.currentUser = { id: user.user_id };
+        this.onLoginCallback?.();
+      } else {
+        this.isLoggedIn = false;
+        this.currentUser = null;
+        this.onLogoutCallback?.();
+      }
+    } catch (error) {
+      console.error("Session check failed:", error);
+      this.isLoggedIn = false;
+      this.currentUser = null;
     }
-    if (doRegisterBtn) {
-      doRegisterBtn.addEventListener("click", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        this.register();
-      });
-    }
-    const loginPassword = document.getElementById("loginPassword");
-    const loginLogin = document.getElementById("loginLogin");
-    const regPassword = document.getElementById("regPassword");
-    const regPasswordConfirm = document.getElementById("regPasswordConfirm");
-    if (loginPassword) {
-      loginPassword.addEventListener("keydown", (e) => {
-        e.stopPropagation();
-        if (e.key === "Enter") {
-          e.preventDefault();
-          e.stopPropagation();
-          this.login();
-        }
-      });
-    }
-    if (loginLogin) {
-      loginLogin.addEventListener("keydown", (e) => {
-        e.stopPropagation();
-        if (e.key === "Enter") {
-          e.preventDefault();
-          e.stopPropagation();
-          if (loginPassword.value) {
-            this.login();
-          } else {
-            loginPassword.focus();
-          }
-        }
-      });
-    }
-    if (regPasswordConfirm) {
-      regPasswordConfirm.addEventListener("keydown", (e) => {
-        e.stopPropagation();
-        if (e.key === "Enter") {
-          e.preventDefault();
-          e.stopPropagation();
-          this.register();
-        }
-      });
-    }
-    if (regPassword) {
-      regPassword.addEventListener("keydown", (e) => {
-        e.stopPropagation();
-        if (e.key === "Enter") {
-          e.preventDefault();
-          e.stopPropagation();
-          regPasswordConfirm.focus();
-        }
-      });
+    this.sessionChecked = true;
+  }
+
+  closeModal() {
+    if (this.modal) {
+      this.modal.remove();
+      this.modal = null;
     }
   }
 
   open() {
-    this.modal.style.display = "block";
-    document.body.style.overflow = "hidden";
-    setTimeout(() => {
-      document.getElementById("loginLogin")?.focus();
-    }, 100);
-  }
-
-  close() {
-    this.modal.style.display = "none";
-    document.body.style.overflow = "";
-  }
-
-  async checkSession() {
-    console.log("Checking session...");
-    const userId = localStorage.getItem("user_id");
-    console.log("User ID from localStorage:", userId);
-    if (userId) {
-      this.isLoggedIn = true;
-      this.currentUser = { login: "alexey" };
-      console.log("Session restored from localStorage");
-      this.updateUI();
-      this.onLoginCallback?.();
-      return true;
+    if (this.modal) {
+      this.closeModal();
     }
-    try {
-      const response = await fetch("/api/user/current", {
-        credentials: "include",
+    const modal = document.createElement("div");
+    modal.className = "auth-modal";
+    modal.innerHTML = `
+      <div class="auth-modal-content">
+        <div class="auth-modal-header">
+          <h2>Авторизация</h2>
+          <button class="auth-modal-close">&times;</button>
+        </div>
+        <div class="auth-tabs">
+          <button class="auth-tab active" data-tab="login">Вход</button>
+          <button class="auth-tab" data-tab="register">Регистрация</button>
+        </div>
+        <div class="auth-forms">
+          <form id="loginForm" class="auth-form active">
+            <input type="text" id="loginUsername" placeholder="Логин" required>
+            <input type="password" id="loginPassword" placeholder="Пароль" required>
+            <button type="submit">Войти</button>
+          </form>
+          <form id="registerForm" class="auth-form">
+            <input type="text" id="registerUsername" placeholder="Имя пользователя" required>
+            <input type="text" id="registerLogin" placeholder="Логин" required>
+            <input type="email" id="registerEmail" placeholder="Email" required>
+            <input type="password" id="registerPassword" placeholder="Пароль" required>
+            <button type="submit">Зарегистрироваться</button>
+          </form>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+    this.modal = modal;
+    modal
+      .querySelector(".auth-modal-close")
+      .addEventListener("click", () => this.closeModal());
+    modal.addEventListener("click", (e) => {
+      if (e.target === modal) this.closeModal();
+    });
+    const tabs = modal.querySelectorAll(".auth-tab");
+    tabs.forEach((tab) => {
+      tab.addEventListener("click", () => {
+        tabs.forEach((t) => t.classList.remove("active"));
+        tab.classList.add("active");
+        const formId =
+          tab.dataset.tab === "login" ? "loginForm" : "registerForm";
+        modal
+          .querySelectorAll(".auth-form")
+          .forEach((f) => f.classList.remove("active"));
+        modal.querySelector(`#${formId}`).classList.add("active");
       });
-      const data = await response.json();
-      if (data.success) {
-        this.isLoggedIn = true;
-        this.currentUser = { login: data.login };
-        localStorage.setItem("user_id", data.user_id);
-        this.updateUI();
-        this.onLoginCallback?.();
-        return true;
+    });
+    const loginForm = modal.querySelector("#loginForm");
+    loginForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const login = modal.querySelector("#loginUsername").value;
+      const password = modal.querySelector("#loginPassword").value;
+      const success = await this.login(login, password);
+      if (success) {
+        this.closeModal();
       }
-    } catch (error) {
-      console.error("Session check failed:", error);
-    }
-    this.isLoggedIn = false;
-    this.updateUI();
-    return false;
+    });
+    const registerForm = modal.querySelector("#registerForm");
+    registerForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const username = modal.querySelector("#registerUsername").value;
+      const login = modal.querySelector("#registerLogin").value;
+      const email = modal.querySelector("#registerEmail").value;
+      const password = modal.querySelector("#registerPassword").value;
+      const success = await this.register(username, login, email, password);
+      if (success) {
+        this.closeModal();
+      }
+    });
   }
 
-  async login() {
-    const login = document.getElementById("loginLogin")?.value;
-    const password = document.getElementById("loginPassword")?.value;
-    if (!login || !password) {
-      this.notification.error("Введите логин и пароль");
-      return;
-    }
+  async login(login, password) {
     try {
       const response = await fetch("/api/user/login", {
         method: "POST",
@@ -188,124 +136,60 @@ export class Auth {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ login, password }),
       });
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          this.isLoggedIn = true;
+          this.currentUser = { id: data.user_id };
+          localStorage.setItem("user_id", data.user_id);
+          this.sessionChecked = true;
+          this.onLoginCallback?.();
+          this.notification.success("Добро пожаловать!");
+          return true;
+        }
+      }
       const data = await response.json();
-      if (data.success) {
-        localStorage.setItem("user_id", data.user_id);
-        console.log("Saved user_id to localStorage:", data.user_id);
-        this.isLoggedIn = true;
-        this.currentUser = { login };
-        this.updateUI();
-        this.close();
-        this.notification.success("Вы вошли в систему");
-        this.onLoginCallback?.();
-      } else {
-        this.notification.error(data.error || "Ошибка входа");
-      }
-      return data;
+      this.notification.error(data.error || "Ошибка входа");
+      return false;
     } catch (error) {
-      this.notification.error("Ошибка соединения");
-      return { success: false };
+      console.error("Login failed:", error);
+      this.notification.error("Ошибка входа");
+      return false;
     }
   }
 
-  async register() {
-    const username = document.getElementById("regUsername")?.value;
-    const login = document.getElementById("regLogin")?.value;
-    const password = document.getElementById("regPassword")?.value;
-    const confirm = document.getElementById("regPasswordConfirm")?.value;
-    if (!username || !login || !password || !confirm) {
-      this.notification.error("Заполните все поля");
-      return;
-    }
-    if (password !== confirm) {
-      this.notification.error("Пароли не совпадают");
-      return;
-    }
+  async register(username, login, email, password) {
     try {
-      const response = await this.api.post("/api/user/register", {
-        username,
-        login,
-        password,
+      const response = await fetch("/api/user/register", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, login, email, password }),
       });
-      if (response.success) {
-        this.notification.success("Регистрация успешна, теперь войдите");
-        const tabs = this.modal?.querySelectorAll(".tab-btn");
-        tabs?.forEach((b) => b.classList.remove("active"));
-        tabs?.[0]?.classList.add("active");
-        document.getElementById("loginForm")?.classList.add("active");
-        document.getElementById("registerForm")?.classList.remove("active");
-        document.getElementById("loginLogin").value = login;
-        document.getElementById("loginPassword").focus();
-      } else {
-        this.notification.error(response.error || "Ошибка регистрации");
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          this.notification.success("Регистрация успешна! Теперь войдите.");
+          return true;
+        }
       }
+      const data = await response.json();
+      this.notification.error(data.error || "Ошибка регистрации");
+      return false;
     } catch (error) {
-      this.notification.error("Ошибка сервера");
+      console.error("Register failed:", error);
+      this.notification.error("Ошибка регистрации");
+      return false;
     }
   }
 
-  async logout() {
-    try {
-      await this.api.post("/api/user/logout", {});
-    } catch (error) {
-      console.log("Logout error:", error);
-    }
+  logout() {
     this.isLoggedIn = false;
     this.currentUser = null;
     localStorage.removeItem("user_id");
-    this.updateUI();
-    this.notification.success("Вы вышли из системы");
-    if (this.onLogout) this.onLogout();
-  }
-
-  setOnLogin(callback) {
-    this.onLogin = callback;
-  }
-
-  setOnLogout(callback) {
-    this.onLogout = callback;
-  }
-
-  updateUI() {
-    const authBtn = document.getElementById("authBtn");
-    const logoutBtn = document.getElementById("logoutBtn");
-    const userNameSpan = document.getElementById("userName");
-    const startBtn = document.getElementById("startBtn");
-    const resetBtn = document.getElementById("resetBtn");
-    const difficultyBtns = document.querySelectorAll(".difficulty-btn");
-    const clearHistoryBtn = document.getElementById("clearHistoryBtn");
-    const adminBtn = document.getElementById("adminBtn");
-    if (this.isLoggedIn) {
-      document.body.classList.remove("auth-locked");
-      if (authBtn) authBtn.style.display = "none";
-      if (logoutBtn) logoutBtn.style.display = "block";
-      if (userNameSpan) userNameSpan.textContent = "✓ В системе";
-      if (startBtn) startBtn.disabled = false;
-      if (resetBtn) resetBtn.disabled = false;
-      difficultyBtns.forEach((btn) => {
-        if (btn) btn.disabled = false;
-      });
-      if (clearHistoryBtn) clearHistoryBtn.disabled = false;
-      if (adminBtn) adminBtn.style.display = "block";
-    } else {
-      document.body.classList.add("auth-locked");
-      if (authBtn) authBtn.style.display = "block";
-      if (logoutBtn) logoutBtn.style.display = "none";
-      if (userNameSpan) userNameSpan.textContent = "❌ Не авторизован";
-      if (startBtn) startBtn.disabled = true;
-      if (resetBtn) resetBtn.disabled = true;
-      difficultyBtns.forEach((btn) => {
-        if (btn) btn.disabled = true;
-      });
-      if (clearHistoryBtn) clearHistoryBtn.disabled = true;
-      if (adminBtn) adminBtn.style.display = "none";
-      if (this.activeGame && this.activeGame.active) {
-        this.activeGame.end();
-      }
-    }
-  }
-
-  setGame(game) {
-    this.activeGame = game;
+    this.sessionChecked = false;
+    this.closeModal();
+    this.onLogoutCallback?.();
+    this.notification.info("Вы вышли из системы");
   }
 }

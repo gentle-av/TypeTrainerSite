@@ -16,7 +16,7 @@ body.auth-locked {
   cursor: not-allowed;
 }
 
-body.auth-locked button:not(#authBtn):not(#logoutBtn) {
+body.auth-locked button:not(#authBtn):not(#logoutBtn):not(.auth-modal button) {
   cursor: not-allowed;
   opacity: 0.5;
   pointer-events: none;

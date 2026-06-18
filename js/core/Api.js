@@ -13,7 +13,12 @@ export class Api {
 
   async get(endpoint) {
     const response = await fetch(`${this.baseUrl}${endpoint}`);
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    if (!response.ok) {
+      if (response.status === 401) {
+        return null;
+      }
+      throw new Error(`HTTP ${response.status}`);
+    }
     return response.json();
   }
 
@@ -23,7 +28,12 @@ export class Api {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    if (!response.ok) {
+      if (response.status === 401) {
+        return null;
+      }
+      throw new Error(`HTTP ${response.status}`);
+    }
     return response.json();
   }
 
