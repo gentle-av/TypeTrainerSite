@@ -1,29 +1,24 @@
 import { KeyboardHandler } from "./KeyboardHandler.js";
 
 export class Game {
-  constructor(api, notification, leaderboard, history, stats, textDisplay) {
+  constructor(api, notification, pageBuilder, gameEngine) {
     this.api = api;
     this.notification = notification;
-    this.leaderboard = leaderboard;
-    this.history = history;
-    this.stats = stats;
-    this.textDisplay = textDisplay;
+    this.pageBuilder = pageBuilder;
+    this.gameEngine = gameEngine;
     this.keyboard = new KeyboardHandler();
-    this.active = false;
-    this.startTime = null;
-    this.currentWords = [];
-    this.currentInput = "";
-    this.totalErrors = 0;
-    this.totalChars = 0;
-    this.currentWordIndex = 0;
-    this.currentCharIndex = 0;
     this.difficulty = "medium";
     this.isLessonMode = false;
     this.keydownHandler = null;
     this.enterHandler = null;
     this.isKeydownRegistered = false;
-    this.errorPositions = new Set();
+    this.onStart = null;
+    this.onEnd = null;
+    this.onReset = null;
     this.setupKeyboardHandlers();
+    if (this.gameEngine) {
+      this.gameEngine.onStatsUpdate = (stats) => this.updateStats(stats);
+    }
   }
 
   setLessonMode(enabled) {
@@ -31,15 +26,19 @@ export class Game {
   }
 
   loadText(text) {
-    if (!text) {
-      console.error("No text provided");
+    if (!text || typeof text !== "string") {
+      console.error("Invalid text provided");
+      this.notification?.error("Ошибка загрузки текста");
       return;
     }
-    this.currentWords = text.split(" ");
-    this.textDisplay.setText(this.currentWords);
-    this.resetProgress();
-    this.stats.reset();
-    this.textDisplay.render();
+    const words = text.split(" ");
+    if (this.gameEngine) {
+      this.gameEngine.loadText(words);
+    }
+    const trainPage = this.pageBuilder.getPageInstance("train");
+    if (trainPage) {
+      trainPage.updateStats({ cpm: 0, wpm: 0, accuracy: 100, errors: 0 });
+    }
   }
 
   setupKeyboardHandlers() {
@@ -53,7 +52,7 @@ export class Game {
       return;
     }
     e.preventDefault();
-    if (!this.active) {
+    if (!this.gameEngine?.isActive()) {
       this.start();
     }
   }
@@ -63,7 +62,7 @@ export class Game {
     if (authModal && authModal.style.display === "block") {
       return;
     }
-    if (!this.active) return;
+    if (!this.gameEngine?.isActive()) return;
     if (e.key === " " || e.key === "Backspace" || e.key === "Enter") return;
     if (e.key.length === 1) {
       e.preventDefault();
@@ -73,13 +72,15 @@ export class Game {
 
   async init() {
     await this.loadRandomText();
-    this.stats.reset();
-    this.leaderboard.load();
+    const trainPage = this.pageBuilder.getPageInstance("train");
+    if (trainPage) {
+      trainPage.updateStats({ cpm: 0, wpm: 0, accuracy: 100, errors: 0 });
+    }
     if (this.enterHandler) {
       document.removeEventListener("keydown", this.enterHandler);
     }
     this.enterHandler = (e) => {
-      if (e.key === "Enter" && !this.active) {
+      if (e.key === "Enter" && !this.gameEngine?.isActive()) {
         this.handleEnter(e);
       }
     };
@@ -90,36 +91,21 @@ export class Game {
     try {
       const data = await this.api.getRandomText(this.difficulty);
       if (data && data.text) {
-        this.currentWords = data.text.split(" ");
-        this.textDisplay.setText(this.currentWords);
-        this.resetProgress();
+        this.loadText(data.text);
       } else {
         throw new Error("No text in response");
       }
     } catch (error) {
       console.error("Error loading text:", error);
       this.notification.error("Ошибка загрузки текста");
-      this.currentWords =
-        "Быстрая печать это важный навык в современном мире".split(" ");
-      this.textDisplay.setText(this.currentWords);
+      const fallbackText = "Быстрая печать это важный навык в современном мире";
+      this.loadText(fallbackText);
     }
   }
 
-  resetProgress() {
-    this.currentInput = "";
-    this.totalErrors = 0;
-    this.totalChars = 0;
-    this.currentWordIndex = 0;
-    this.currentCharIndex = 0;
-    this.errorPositions.clear();
-    this.textDisplay.updateProgress(0, 0, "");
-  }
-
   start() {
-    if (this.active) return;
-    this.active = true;
-    this.startTime = Date.now();
-    this.resetProgress();
+    if (this.gameEngine?.isActive()) return;
+    this.gameEngine?.start();
     this.keyboard.activate();
     this.keyboard.focus();
     if (this.keydownHandler) {
@@ -136,155 +122,92 @@ export class Game {
     if (this.onStart) this.onStart();
   }
 
-  calculateCPM() {
-    if (!this.startTime) return 0;
-    const minutes = (Date.now() - this.startTime) / 60000;
-    return minutes > 0 ? this.totalChars / minutes : 0;
-  }
-
-  calculateWPM() {
-    return this.calculateCPM() / 5;
-  }
-
-  calculateAccuracy() {
-    if (this.totalChars === 0) return 100;
-    return ((this.totalChars - this.totalErrors) / this.totalChars) * 100;
-  }
-
-  updateStats() {
-    const cpm = this.calculateCPM();
-    const wpm = this.calculateWPM();
-    const accuracy = this.calculateAccuracy();
-    this.stats.update({
-      cpm: cpm,
-      wpm: wpm,
-      accuracy: accuracy,
-      errors: this.totalErrors,
-    });
+  updateStats(stats) {
+    const trainPage = this.pageBuilder.getPageInstance("train");
+    if (trainPage) {
+      trainPage.updateStats({
+        cpm: stats.cpm || 0,
+        wpm: stats.wpm || 0,
+        accuracy: stats.accuracy || 100,
+        errors: stats.errors || 0,
+      });
+    }
   }
 
   handleSpace(e) {
     e.preventDefault();
-    const currentWord = this.currentWords[this.currentWordIndex];
-    if (!currentWord) return;
-    if (this.currentCharIndex === currentWord.length) {
-      this.currentWordIndex++;
-      this.currentCharIndex = 0;
-      this.currentInput += " ";
-      this.totalChars++;
-      this.textDisplay.updateProgress(
-        this.currentWordIndex,
-        this.currentCharIndex,
-        this.currentInput,
-      );
-      this.updateStats();
-      this.checkTextComplete();
-    } else {
-      const position = this.getCurrentPosition();
-      if (!this.errorPositions.has(position)) {
-        this.errorPositions.add(position);
-        this.totalErrors++;
+    const result = this.gameEngine?.handleSpace();
+    if (result) {
+      this.updateDisplay();
+      if (result.isComplete) {
+        this.end();
       }
-      this.currentCharIndex++;
-      this.currentInput += " ";
-      this.totalChars++;
-      this.textDisplay.updateProgress(
-        this.currentWordIndex,
-        this.currentCharIndex,
-        this.currentInput,
-      );
-      this.updateStats();
     }
-  }
-
-  getCurrentPosition() {
-    let position = 0;
-    for (let i = 0; i < this.currentWordIndex; i++) {
-      position += this.currentWords[i].length + 1;
-    }
-    position += this.currentCharIndex;
-    return position;
   }
 
   handleBackspace(e) {
     e.preventDefault();
-    if (this.currentCharIndex > 0) {
-      this.currentCharIndex--;
-      this.currentInput = this.currentInput.slice(0, -1);
-      this.totalChars--;
-      this.textDisplay.updateProgress(
-        this.currentWordIndex,
-        this.currentCharIndex,
-        this.currentInput,
-      );
-      this.updateStats();
+    const result = this.gameEngine?.handleBackspace();
+    if (result) {
+      this.updateDisplay();
     }
   }
 
   handleChar(char) {
-    const currentWord = this.currentWords[this.currentWordIndex];
-    if (!currentWord) return;
-    if (this.currentCharIndex < currentWord.length) {
-      const expectedChar = currentWord[this.currentCharIndex];
-      const position = this.getCurrentPosition();
-      this.currentInput += char;
-      this.totalChars++;
-      if (!this.isCharEqual(char, expectedChar)) {
-        if (!this.errorPositions.has(position)) {
-          this.errorPositions.add(position);
-          this.totalErrors++;
-        }
+    const result = this.gameEngine?.handleChar(char);
+    if (result) {
+      this.updateDisplay();
+      if (result.isComplete) {
+        this.end();
       }
-      this.currentCharIndex++;
-      this.textDisplay.updateProgress(
-        this.currentWordIndex,
-        this.currentCharIndex,
-        this.currentInput,
-      );
-      this.updateStats();
-      this.checkTextComplete();
     }
   }
 
-  checkTextComplete() {
-    if (this.currentWordIndex >= this.currentWords.length) {
-      this.end();
-      return;
-    }
-    const isLastWord = this.currentWordIndex === this.currentWords.length - 1;
-    const currentWord = this.currentWords[this.currentWordIndex];
-    const isLastChar = this.currentCharIndex === currentWord.length;
-    if (isLastWord && isLastChar) {
-      this.end();
+  updateDisplay() {
+    const progress = this.gameEngine?.getProgress();
+    if (!progress) return;
+    const textDisplayEl = document.getElementById("textDisplay");
+    if (textDisplayEl && this.gameEngine) {
+      const trainPage = this.pageBuilder.getPageInstance("train");
+      if (trainPage && trainPage.textDisplay) {
+        trainPage.textDisplay.updateProgress(
+          progress.wordIndex,
+          progress.charIndex,
+          this.gameEngine.currentInput,
+        );
+      }
     }
   }
 
   async end() {
-    if (!this.active) return;
-    this.active = false;
+    if (!this.gameEngine?.isActive()) return;
+    const stats = this.gameEngine.end();
+    if (!stats) return;
     this.keyboard.deactivate();
     if (this.keydownHandler) {
       document.removeEventListener("keydown", this.keydownHandler);
       this.keydownHandler = null;
       this.isKeydownRegistered = false;
     }
-    const timeSpent = (Date.now() - this.startTime) / 1000;
     await this.api.saveTestResult(
-      this.totalChars,
-      this.totalErrors,
-      Math.round(timeSpent),
+      stats.totalChars || 0,
+      stats.errors || 0,
+      Math.round(stats.timeSeconds || 0),
     );
-    await this.leaderboard.load();
-    await this.history.load();
+    const statsPage = this.pageBuilder.getPageInstance("stats");
+    if (statsPage) {
+      await statsPage.loadLeaderboard?.();
+      await statsPage.loadUserStats?.();
+    }
     this.notification.success(
-      `Тест завершён! CPM: ${Math.round(this.calculateCPM())}`,
+      `Тест завершён! CPM: ${Math.round(stats.cpm || 0)}`,
     );
     if (this.onEnd) this.onEnd();
   }
 
   reset() {
-    if (this.active) {
-      this.active = false;
+    if (this.gameEngine?.isActive()) {
+      this.gameEngine.end();
       this.keyboard.deactivate();
       if (this.keydownHandler) {
         document.removeEventListener("keydown", this.keydownHandler);
@@ -293,11 +216,15 @@ export class Game {
       }
     }
     if (this.isLessonMode) {
-      this.loadText(this.currentWords.join(" "));
+      this.loadText(this.gameEngine?.currentWords?.join(" ") || "");
     } else {
       this.loadRandomText();
     }
-    this.stats.reset();
+    this.gameEngine?.resetProgress();
+    const trainPage = this.pageBuilder.getPageInstance("train");
+    if (trainPage) {
+      trainPage.updateStats({ cpm: 0, wpm: 0, accuracy: 100, errors: 0 });
+    }
     if (this.onReset) this.onReset();
   }
 
@@ -320,23 +247,22 @@ export class Game {
 
   async loadNewText() {
     if (this.isLessonMode) {
-      this.loadText(this.currentWords.join(" "));
+      this.loadText(this.gameEngine?.currentWords?.join(" ") || "");
       return;
     }
     await this.loadRandomText();
-    this.resetProgress();
-    this.stats.reset();
-    this.textDisplay.render();
+    this.gameEngine?.resetProgress();
+    const trainPage = this.pageBuilder.getPageInstance("train");
+    if (trainPage) {
+      trainPage.updateStats({ cpm: 0, wpm: 0, accuracy: 100, errors: 0 });
+    }
   }
 
-  normalizeChar(char) {
-    if (char === "ё") return "е";
-    if (char === "Ё") return "Е";
-    if (char === "-" || char === "–" || char === "—") return "-";
-    return char;
+  calculateCPM() {
+    return this.gameEngine?.calculateCPM() || 0;
   }
 
-  isCharEqual(char1, char2) {
-    return this.normalizeChar(char1) === this.normalizeChar(char2);
+  calculateAccuracy() {
+    return this.gameEngine?.calculateAccuracy() || 100;
   }
 }

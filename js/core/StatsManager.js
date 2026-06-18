@@ -1,3 +1,4 @@
+// js/core/StatsManager.js
 class StatsManager {
   constructor(api, pageBuilder) {
     this.api = api;
@@ -31,6 +32,25 @@ class StatsManager {
       return data;
     } catch (error) {
       console.error("Failed to load leaderboard:", error);
+    }
+  }
+
+  async clearHistory() {
+    try {
+      const response = await fetch("/api/history/clear", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await response.json();
+      if (data.success) {
+        await this.loadUserStats();
+        await this.loadLeaderboard();
+        return true;
+      }
+      return false;
+    } catch (error) {
+      console.error("Failed to clear history:", error);
+      return false;
     }
   }
 }

@@ -1,8 +1,7 @@
 class HistoryEventHandler {
-  constructor(eventManager, leaderboard, history, authManager, notification) {
+  constructor(eventManager, statsManager, authManager, notification) {
     this.eventManager = eventManager;
-    this.leaderboard = leaderboard;
-    this.history = history;
+    this.statsManager = statsManager;
     this.authManager = authManager;
     this.notification = notification;
   }
@@ -18,9 +17,12 @@ class HistoryEventHandler {
       return;
     }
     if (confirm("Вы уверены, что хотите очистить всю историю?")) {
-      await this.leaderboard.clearHistory();
-      await this.history.load();
-      this.notification.success("История очищена");
+      const success = await this.statsManager.clearHistory();
+      if (success) {
+        this.notification.success("История очищена");
+      } else {
+        this.notification.error("Ошибка очистки истории");
+      }
     }
   }
 }

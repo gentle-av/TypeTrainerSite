@@ -36,28 +36,6 @@ class PageBuilder {
       }
     });
   }
-
-  // Методы для обновления конкретных страниц
-  updateTrainPage(data) {
-    const page = this.pages.train;
-    if (page.updateStats) {
-      page.updateStats(data);
-    }
-  }
-
-  updateLessonsPage(lessons) {
-    const page = this.pages.lessons;
-    if (page.updateLessons) {
-      page.updateLessons(lessons);
-    }
-  }
-
-  updateStatsPage(stats) {
-    const page = this.pages.stats;
-    if (page.updateStats) {
-      page.updateStats(stats);
-    }
-  }
 }
 
 export { PageBuilder };

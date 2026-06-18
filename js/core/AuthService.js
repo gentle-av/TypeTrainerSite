@@ -1,13 +1,13 @@
-export class Auth {
+export class AuthService {
   constructor(api, notification) {
     this.api = api;
     this.notification = notification;
     this.isLoggedIn = false;
     this.currentUser = null;
+    this.sessionChecked = false;
     this.game = null;
     this.onLoginCallback = null;
     this.onLogoutCallback = null;
-    this.sessionChecked = false;
     this.modal = null;
   }
 
