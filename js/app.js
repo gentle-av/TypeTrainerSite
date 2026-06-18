@@ -137,6 +137,11 @@ class App {
 
   async init() {
     this.buildUI();
+    const pageBuilder = this.service("pageBuilder");
+    const trainPage = pageBuilder.getPageInstance("train");
+    if (trainPage) {
+      trainPage.initTextDisplay();
+    }
     const controlManager = this.service("controlManager");
     const game = this.service("game");
     const authManager = this.service("authManager");

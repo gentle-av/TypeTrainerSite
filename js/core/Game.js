@@ -1,3 +1,4 @@
+// js/core/Game.js
 import { KeyboardHandler } from "./KeyboardHandler.js";
 
 export class Game {
@@ -25,6 +26,11 @@ export class Game {
     this.isLessonMode = enabled;
   }
 
+  getTextDisplay() {
+    const trainPage = this.pageBuilder.getPageInstance("train");
+    return trainPage ? trainPage.textDisplay : null;
+  }
+
   loadText(text) {
     if (!text || typeof text !== "string") {
       console.error("Invalid text provided");
@@ -34,6 +40,10 @@ export class Game {
     const words = text.split(" ");
     if (this.gameEngine) {
       this.gameEngine.loadText(words);
+    }
+    const textDisplay = this.getTextDisplay();
+    if (textDisplay) {
+      textDisplay.setText(words);
     }
     const trainPage = this.pageBuilder.getPageInstance("train");
     if (trainPage) {
@@ -166,16 +176,13 @@ export class Game {
   updateDisplay() {
     const progress = this.gameEngine?.getProgress();
     if (!progress) return;
-    const textDisplayEl = document.getElementById("textDisplay");
-    if (textDisplayEl && this.gameEngine) {
-      const trainPage = this.pageBuilder.getPageInstance("train");
-      if (trainPage && trainPage.textDisplay) {
-        trainPage.textDisplay.updateProgress(
-          progress.wordIndex,
-          progress.charIndex,
-          this.gameEngine.currentInput,
-        );
-      }
+    const textDisplay = this.getTextDisplay();
+    if (textDisplay && this.gameEngine) {
+      textDisplay.updateProgress(
+        progress.wordIndex,
+        progress.charIndex,
+        this.gameEngine.currentInput,
+      );
     }
   }
 

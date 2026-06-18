@@ -1,10 +1,17 @@
+// js/components/TextDisplay.js
 export class TextDisplay {
   constructor(containerId = "textDisplay") {
-    this.container = document.getElementById(containerId);
+    this.containerId = containerId;
+    this.container = null;
     this.words = [];
     this.currentWordIndex = 0;
     this.currentCharIndex = 0;
     this.userInput = "";
+  }
+
+  setContainer() {
+    this.container = document.getElementById(this.containerId);
+    return this.container;
   }
 
   setText(words) {
@@ -51,7 +58,13 @@ export class TextDisplay {
   }
 
   render() {
-    if (!this.container) return;
+    if (!this.container) {
+      this.setContainer();
+      if (!this.container) {
+        console.error("Container not found:", this.containerId);
+        return;
+      }
+    }
     if (!this.words || this.words.length === 0) {
       this.container.innerHTML = "<div>Загрузка...</div>";
       return;

@@ -1,3 +1,6 @@
+// js/pages/TrainPage.js
+import { TextDisplay } from "../components/TextDisplay.js";
+
 export class TrainPage {
   constructor() {
     this.stats = {
@@ -7,6 +10,7 @@ export class TrainPage {
       errors: 0,
     };
     this.difficulty = "medium";
+    this.textDisplay = new TextDisplay("textDisplay");
   }
 
   render() {
@@ -46,6 +50,11 @@ export class TrainPage {
         </div>
       </div>
     `;
+  }
+
+  initTextDisplay() {
+    this.textDisplay.setContainer();
+    return this.textDisplay;
   }
 
   updateStats(stats) {
