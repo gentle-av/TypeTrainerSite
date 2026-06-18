@@ -2,6 +2,7 @@ class LessonEventHandler {
   constructor(eventManager, lessonManager) {
     this.eventManager = eventManager;
     this.lessonManager = lessonManager;
+    this.isLoading = false;
   }
 
   init() {
@@ -10,13 +11,17 @@ class LessonEventHandler {
   }
 
   async handleLoad() {
+    if (this.isLoading) return;
+    this.isLoading = true;
     await this.lessonManager.loadLessons();
     if (this.lessonManager.authManager?.isLoggedIn()) {
       await this.lessonManager.loadProgress();
     }
+    this.isLoading = false;
   }
 
   async handleStart(data) {
+    if (this.isLoading) return;
     await this.lessonManager.startLesson(data.lessonId);
   }
 }

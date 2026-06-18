@@ -2,6 +2,7 @@ export class Lessons {
   constructor() {
     this.lessons = [];
     this.progress = {};
+    this.listeners = [];
   }
 
   render() {
@@ -118,11 +119,17 @@ export class Lessons {
   }
 
   attachLessonListeners(callback) {
+    this.listeners.forEach(({ btn, handler }) => {
+      btn.removeEventListener("click", handler);
+    });
+    this.listeners = [];
     document.querySelectorAll(".btn-start-lesson").forEach((btn) => {
-      btn.addEventListener("click", () => {
+      const handler = () => {
         const id = parseInt(btn.dataset.id);
         callback(id);
-      });
+      };
+      btn.addEventListener("click", handler);
+      this.listeners.push({ btn, handler });
     });
   }
 }

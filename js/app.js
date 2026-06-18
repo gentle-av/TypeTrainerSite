@@ -9,6 +9,7 @@ import { ControlManager } from "./core/ControlManager.js";
 import { TabManager } from "./core/TabManager.js";
 import { EventManager } from "./core/EventManager.js";
 import { PageEventBinder } from "./core/PageEventBinder.js";
+import { GameEventHandler } from "./core/GameEventHandler.js";
 import { NavigationEventHandler } from "./core/NavigationEventHandler.js";
 import { LessonEventHandler } from "./core/LessonEventHandler.js";
 import { StatsEventHandler } from "./core/StatsEventHandler.js";
@@ -71,6 +72,18 @@ class App {
       const gameEngine = c.resolve("gameEngine");
       return new Game(api, notification, pageBuilder, gameEngine);
     });
+    this.container.register(
+      "gameEventHandler",
+      (c) =>
+        new GameEventHandler(
+          c.resolve("eventManager"),
+          c.resolve("game"),
+          c.resolve("lessonManager"),
+          c.resolve("authManager"),
+          c.resolve("notification"),
+          c.resolve("pageBuilder"),
+        ),
+    );
     this.container.register(
       "authEventHandler",
       (c) =>
@@ -145,6 +158,7 @@ class App {
     const controlManager = this.service("controlManager");
     const game = this.service("game");
     const authManager = this.service("authManager");
+    const gameEventHandler = this.service("gameEventHandler");
     const authEventHandler = this.service("authEventHandler");
     const navigationEventHandler = this.service("navigationEventHandler");
     const lessonEventHandler = this.service("lessonEventHandler");
@@ -157,12 +171,23 @@ class App {
     controlManager.init();
     await game.init();
     authManager.init();
+    gameEventHandler.init();
     authEventHandler.init();
     navigationEventHandler.init();
     lessonEventHandler.init();
     statsEventHandler.init();
     historyEventHandler.init();
     pageEventBinder.bindAll();
+
+    if (trainPage) {
+      trainPage.attachStartListener(() => {
+        this.eventManager.emit("game:start");
+      });
+      trainPage.attachResetListener(() => {
+        this.eventManager.emit("game:reset");
+      });
+    }
+
     await authManager.checkSession();
     await navigationEventHandler.restoreTab();
     await this.loadInitialData();

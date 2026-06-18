@@ -1,3 +1,4 @@
+// js/pages/StatsPage.js
 export class StatsPage {
   constructor() {
     this.stats = {
@@ -45,8 +46,8 @@ export class StatsPage {
   renderStats() {
     this.updateElement("totalTests", this.stats.totalTests || 0);
     this.updateElement("avgCpm", Math.round(this.stats.avgCpm || 0));
-    this.updateElement("avgAccuracy", (this.stats.avgAccuracy || 0).toFixed(1));
-    this.updateElement("bestCpm", this.stats.bestCpm || 0);
+    this.updateElement("avgAccuracy", Math.round(this.stats.avgAccuracy || 0));
+    this.updateElement("bestCpm", Math.round(this.stats.bestCpm || 0));
     this.renderHistory(this.stats.history || []);
   }
 
@@ -71,9 +72,9 @@ export class StatsPage {
     return `
       <div class="history-item">
         <span class="history-cpm">${Math.round(entry.cpm)} CPM</span>
-        <span class="history-accuracy">${entry.accuracy.toFixed(1)}%</span>
-        <span class="history-errors">Ошибок: ${entry.errors}</span>
-        <span class="history-characters">Символов: ${entry.characters}</span>
+        <span class="history-accuracy">${Math.round(entry.accuracy)}%</span>
+        <span class="history-errors">Ошибок: ${Math.round(entry.errors)}</span>
+        <span class="history-characters">Символов: ${Math.round(entry.characters)}</span>
         <span class="history-date">${new Date(entry.created_at).toLocaleString()}</span>
       </div>
     `;

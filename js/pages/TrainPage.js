@@ -1,4 +1,3 @@
-// js/pages/TrainPage.js
 import { TextDisplay } from "../components/TextDisplay.js";
 
 export class TrainPage {
@@ -11,6 +10,8 @@ export class TrainPage {
     };
     this.difficulty = "medium";
     this.textDisplay = new TextDisplay("textDisplay");
+    this.startCallback = null;
+    this.resetCallback = null;
   }
 
   render() {
@@ -45,8 +46,8 @@ export class TrainPage {
           <div class="text-display" id="textDisplay"></div>
         </div>
         <div class="controls">
-          <button class="btn btn-primary" id="startBtn" disabled>Начать тест</button>
-          <button class="btn btn-secondary" id="resetBtn" disabled>Сброс</button>
+          <button class="btn btn-primary" id="startBtn">Начать тест</button>
+          <button class="btn btn-secondary" id="resetBtn">Сброс</button>
         </div>
       </div>
     `;
@@ -57,16 +58,27 @@ export class TrainPage {
     return this.textDisplay;
   }
 
+  initControls() {
+    const startBtn = document.getElementById("startBtn");
+    const resetBtn = document.getElementById("resetBtn");
+    if (startBtn && this.startCallback) {
+      startBtn.addEventListener("click", this.startCallback);
+    }
+    if (resetBtn && this.resetCallback) {
+      resetBtn.addEventListener("click", this.resetCallback);
+    }
+  }
+
   updateStats(stats) {
     this.stats = { ...this.stats, ...stats };
     this.renderStats();
   }
 
   renderStats() {
-    this.updateElement("cpm", this.stats.cpm || 0);
-    this.updateElement("wpm", this.stats.wpm || 0);
-    this.updateElement("accuracy", this.stats.accuracy || 100);
-    this.updateElement("errors", this.stats.errors || 0);
+    this.updateElement("cpm", Math.round(this.stats.cpm || 0));
+    this.updateElement("wpm", Math.round(this.stats.wpm || 0));
+    this.updateElement("accuracy", Math.round(this.stats.accuracy || 100));
+    this.updateElement("errors", Math.round(this.stats.errors || 0));
   }
 
   updateElement(id, value) {
@@ -124,10 +136,26 @@ export class TrainPage {
   }
 
   attachStartListener(callback) {
-    document.getElementById("startBtn")?.addEventListener("click", callback);
+    this.startCallback = callback;
+    const startBtn = document.getElementById("startBtn");
+    if (startBtn) {
+      startBtn.addEventListener("click", callback);
+    }
   }
 
   attachResetListener(callback) {
-    document.getElementById("resetBtn")?.addEventListener("click", callback);
+    this.resetCallback = callback;
+    const resetBtn = document.getElementById("resetBtn");
+    if (resetBtn) {
+      resetBtn.addEventListener("click", callback);
+    }
+  }
+
+  removeBlur() {
+    const container = document.getElementById("textContainer");
+    if (container) {
+      container.classList.remove("waiting", "completing");
+      container.classList.add("active");
+    }
   }
 }
